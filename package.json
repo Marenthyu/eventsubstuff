@@ -4,12 +4,14 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "start": "node index.js"
   },
   "keywords": [],
   "author": "",
   "license": "BSD3",
   "dependencies": {
-    "got": "^11.8.2"
+    "got": "^11.8.2",
+    "ws": "^7.4.5"
   }
 }

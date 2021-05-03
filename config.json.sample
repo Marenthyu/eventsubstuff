@@ -1,3 +1,10 @@
 {
-    "port":8099
+    "port":8099,
+    "secret": "ASecretStringYouShouldComeUpWith",
+    "client_id": "FromTheTwitchDashboard",
+    "client_secret": "FromTheTwitchDashboard",
+    "websocket_secret": "MyAwesomePasswordIChose",
+    "websocket_port": 9248,
+    "websocket_cert_path": "/path/to/your/certificate.pem",
+    "websocket_key_path": "/path/to/your/key.pem"
 }
