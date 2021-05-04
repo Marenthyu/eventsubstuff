@@ -11,11 +11,10 @@ const config = require('./config.json');
 let authenticatedConnections = {};
 let id_counter = 0;
 
-let server = http.createServer((req, res) => {
-    console.log(req.url);
-    switch (req.url.substring(1)) {
+let server = http.createServer(async (req, res) => {
+    const calledURL = new URL(req.url, 'https://' + (req.headers.hasOwnProperty('x-forwarded-host') ? req.headers['x-forwarded-host'] : req.headers['host']));
+    switch (calledURL.pathname.substring(1)) {
         case "twitch/callback": {
-            console.log("Twitch Callback!");
             if (req.method === 'POST') {
 
                 let body = Buffer.from('');
@@ -96,10 +95,66 @@ let server = http.createServer((req, res) => {
             break;
         }
         case "login": {
-            console.log("login");
-            // TODO: Actually log in and handle oauth
-            res.writeHead(200, "OK");
-            res.end("We will log you in here.");
+            let code = calledURL.searchParams.get('code');
+            if (code) {
+                let response;
+                try {
+                    response = await got({
+                        url: 'https://id.twitch.tv/oauth2/token',
+                        searchParams: {
+                            client_id: config.client_id,
+                            client_secret: config.client_secret,
+                            code: code,
+                            grant_type: 'authorization_code',
+                            redirect_uri: 'https://' + calledURL.host + calledURL.pathname
+                        },
+                        method: 'POST'
+                    }).json();
+                } catch (e) {
+                    console.error(e);
+                    try {
+                        console.error(e.response.body);
+                    } catch (e) {}
+                    res.writeHead(500, "Error");
+                    res.end("Something didn't work here - most likely, the code was invalid.");
+                    return;
+                }
+                let token = response.access_token;
+                let verifyResponse;
+                try {
+                    verifyResponse = await got({
+                        url: 'https://id.twitch.tv/oauth2/validate',
+                        headers: {
+                            Authorization: 'OAuth ' + token
+                        },
+                        method: 'GET'
+                    }).json();
+                } catch (e) {
+                    console.error(e);
+                    try {
+                        console.error(e.response.body);
+                    } catch (e) {}
+                    res.writeHead(500, "Error");
+                    res.end("Something didn't work here - most likely, the code was invalid.");
+                    return;
+                }
+                if (verifyResponse.user_id !== config.expected_user_id) {
+                    res.writeHead(401, "Unauthorized");
+                    res.end("You tried to authorize a user i did not expect. Please go away.");
+                    console.log(verifyResponse.login, "gave us a token? thanks?", JSON.stringify(verifyResponse))
+                } else {
+                    res.writeHead(200, "OK");
+                    res.end("Thank you for verifying yourself!");
+                    console.log("Verified user", verifyResponse.login);
+                }
+            } else {
+                res.writeHead(302, "Found", {'Location':'https://id.twitch.tv/oauth2/authorize' +
+                        '?client_id=' + config.client_id +
+                '&redirect_uri=' + encodeURIComponent(calledURL.toString()) +
+                '&response_type=code'});
+                res.end("You should've been redirected.");
+            }
+
             break;
         }
         default: {
